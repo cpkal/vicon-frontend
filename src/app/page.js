@@ -51,7 +51,7 @@ export default function Home() {
       </nav>
 
       <div className="h-full w-full">
-        <div className="w-1/2 transform translate-y-1/2">
+        <div className="w-1/2 transform translate-y-1/3">
           <div className="ml-14">
             <h1 className="text-5xl text-gray-800 leading-normal">Rapat dan panggilan video untuk semua orang</h1>
             <h2 className="text-2xl text-gray-600">Terhubung, berkolaborasi, dan merayakan dari mana saja dengan Google Meet</h2>
