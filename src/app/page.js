@@ -1,17 +1,29 @@
 'use client'
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 
 export default function Home() {
   const [roomId, setRoomId] = useState("");
   const router = useRouter();
+  const [isShowSettingPopup, setShowSettingPopup] = useState(false);
+  const [isCameraEnabled, setCameraEnabled] = useState(false);
+  const [isMicEnabled, setMicEnabled] = useState(false);
 
   const handleCreateRoom = () => {
     //create random uuid for roomId
     const roomId = uuidv4();
     router.push(`/${roomId}`);
   }
+
+  const handleJoinRoom = () => {
+    router.push(`/${roomId}`);
+  }
+
+  useEffect(() => {
+    localStorage.setItem('isCameraEnabled', isCameraEnabled);
+    localStorage.setItem('isMicEnabled', isMicEnabled);
+  }, [isCameraEnabled, isMicEnabled]);
 
   return (
     <main className="">
@@ -25,7 +37,9 @@ export default function Home() {
             <p className="text-gray-600">16.19  •  Min, 25 Agu</p>
             <img src="/assets/icons/help.svg" />
             <img src="/assets/icons/feedback.svg" />
-            <img src="/assets/icons/settings.svg" />
+            <button onClick={() => setShowSettingPopup(prev => !prev)}>
+              <img src="/assets/icons/settings.svg" />
+            </button>
           </div>
           <div className="pl-12 flex items-center space-x-4">
             <img src="/assets/icons/apps.svg" />
@@ -48,12 +62,12 @@ export default function Home() {
               </button>
               <div className="flex space-x-4">
                 <div className="relative">
-                  <input type="text" className="rounded lg p-3 border border-gray-600 placeholder:text-gray-600 pl-10 focus:ring focus:border-sky-500" placeholder="Masukkan kode atau link"  />
-                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <input type="text" className="rounded lg p-3 border border-gray-600 placeholder:text-gray-600 pl-10 focus:ring focus:border-sky-500" placeholder="Masukkan kode atau link" onChange={(e) => setRoomId(e.target.value)}  />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <img src="/assets/icons/keyboard.svg" />
                   </div>
                 </div>
-                <button className="font-medium text-sky-600">Gabung</button>
+                <button className="font-medium text-sky-600" onClick={handleJoinRoom}>Gabung</button>
               </div>
             </div>
           </div>
@@ -66,6 +80,25 @@ export default function Home() {
 
         </div>
       </div>
+
+      <div className={`fixed inset-0 bg-black z-50 bg-opacity-50 flex items-center justify-center ${isShowSettingPopup ? '' : 'hidden'}`} id="lunrsearchresultsparent">
+        <div  className="w-full md:w-3/5 overflow-x-auto bg-white border border-gray-300 mx-auto absolute left-1/2 transform -translate-x-1/2 z-50 p-8 rounded-lg " >
+            <br />
+            <button className="absolute top-0 right-0 mx-2 font-bold p-2 text-lg" onClick={() => setShowSettingPopup(prev => !prev)}>x</button>
+            <div className="flex">
+              <div className="w-1/5 border-r border-gray-800">
+                Camera & Mic
+              </div>
+              <div className="w-4/5 px-4">
+                <h3 className="text-xl">Camera</h3>
+                <input type="checkbox" onChange={(e) => setCameraEnabled(prev => !prev)} />
+                <h3 className="text-xl">Mic</h3>
+                <input type="checkbox" onChange={() => setMicEnabled(prev => !prev)} />
+              </div>
+            </div>
+        </div>
+      </div>
+
       {/* <button onClick={handleCreateRoom}>Create room</button>
       <input
         type="text"
