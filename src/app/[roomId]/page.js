@@ -14,6 +14,10 @@ const MultiUserCall = () => {
   const myVideo = useRef();
   const myPresentation = useRef();
   const [isPresenting, setIsPresenting] = useState(false);
+  const presentingRef = useRef();
+  const [presentationStream, setPresentationStream] = useState(null);
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [showPeopleModal, setShowPeopleModal] = useState(false);
 
   const [cameraStatus, setCameraStatus] = useState(false);
   const [micStatus, setMicStatus] = useState(false);
@@ -49,7 +53,7 @@ const MultiUserCall = () => {
 
         wsRef.current.onmessage = (message) => {
           const data = JSON.parse(message.data);
-          if (data.type === 'peers' || data.type === 'peers-presentation') {
+          if (data.type === 'peers') {
             // Handle received peer IDs
             const peersInRoom = data.peers.filter((peer) => peer.peerId !== id);
 
@@ -91,14 +95,48 @@ const MultiUserCall = () => {
 
       // 
       peer.on('call', (call) => {
-        console.log('me on call?')
         navigator.mediaDevices.getUserMedia({ video: false , audio: true }).then((stream) => {
           myVideo.current.srcObject = stream;
           myVideo.current.play();
           call.answer(stream);
-          call.on('stream', (remoteStream) => {       
-            addRemoteVideo(call.peer, remoteStream);
+          call.on('stream', (remoteStream) => {     
+            let xd = isPresenting;
+            wsRef.current.onmessage = async (message) => {
+              const data = JSON.parse(message.data);
+              presentingRef.current = data;
+
+              if(data.type === 'peers-presentation-stopped') {
+                console.log('presentation stopped');
+                setIsPresenting(false);
+                // myVideo.current.srcObject = stream;
+                myPresentation.current.srcObject = null;
+                myPresentation.current.className = 'hidden';
+                // myVideo.current.play();
+              }
+            }  
+            
+            
+            const video = document.getElementById('presentation');
+
+            console.log(presentingRef.current)
+            
+            if(presentingRef.current?.isPresentation && presentingRef.current?.type === 'peers-presentation') {
+              video.className = '';
+              video.srcObject = remoteStream;
+
+            }
+            
+            video.play();
+
+            // setIsPresenting(true);
+
+            // console.log('xdding', xd)
+
+            // document.body.appendChild(video);
+            // addRemoteVideo(call.peer, remoteStream);
+            // console.log('i also get executed bro')
           });
+          
         });
       });
     }
@@ -255,12 +293,18 @@ const MultiUserCall = () => {
       port: 9000,
       path: '/'
     });
+
+    screenPeer.on('open', (id) => {
+      screenPeer.on('data', function(data) {
+        console.log('Received', data);
+      })
+    })
     
-    navigator.mediaDevices.getDisplayMedia({video: true, audio: true}).then(stream => {
+    navigator.mediaDevices.getDisplayMedia({video: true, audio: false}).then(stream => {
       myPresentation.current.srcObject = stream;
       myPresentation.current.play();
       setIsPresenting(true);
-
+      setPresentationStream(stream);
       
 
       // peers.forEach((remotePeer) => {
@@ -272,31 +316,39 @@ const MultiUserCall = () => {
       // });
 
       xPeers.forEach((remotePeer) => {
-        console.log(remotePeer);
         const remoteId = remotePeer.peerId;
-        console.log(remoteId)
         const call = screenPeer.call(remoteId, stream);
         call.on('stream', (remoteStream) => {
-          // console.log('sasjdofiasd', remoteStream);
           addPresentationVideo(remoteId, remoteStream);
         })
       })
+      
+      // wsRef.current.send()
 
-      // wsRef.current.send(JSON.stringify({ type: 'presentation-stream', peerId, roomId, stream }))
+      wsRef.current.send(JSON.stringify({ type: 'presentation-stream', peerId, roomId, stream }))
+
+     
+      if(presentationStream) {
+        console.log('presstream', presentationStream)
+      }
+      // myPresentation.getVideoTracks()[0].addEventListener('ended', () => {
+      //   console.log('Screen sharing stopped by user');
+      //   wsRef.current.send(JSON.stringify({ type: 'presentation-stopped', peerId, roomId }))
+      // });
     })
 
 
-    screenPeer.on('call', (call) => {
-      navigator.mediaDevices.getDisplayMedia({ video: true , audio: true }).then((stream) => {
-        myPresentation.current.srcObject = stream;
-        myPresentation.current.play();
-        call.answer(stream);
-        call.on('stream', (remoteStream) => {
-          // addRemoteVideo(call.peer, remoteStream);
-          console.log('kakikukeko', remoteStream)
-        });
-      });
-    })
+    // screenPeer.on('call', (call) => {
+    //   navigator.mediaDevices.getDisplayMedia({ video: true , audio: true }).then((stream) => {
+    //     myPresentation.current.srcObject = stream;
+    //     myPresentation.current.play();
+    //     call.answer(stream);
+    //     call.on('stream', (remoteStream) => {
+    //       // addRemoteVideo(call.peer, remoteStream);
+    //       console.log('kakikukeko', remoteStream)
+    //     });
+    //   });
+    // })
 
     
     
@@ -310,6 +362,23 @@ const MultiUserCall = () => {
     console.log('raise hand');
     wsRef.current.send(JSON.stringify({ type: 'raise-hand', peerId, roomId }));
   }
+
+
+  useEffect(() => {
+    console.log(isPresenting);
+  }, [isPresenting])
+
+  useEffect(() => {
+    if(presentationStream) {
+      presentationStream.getVideoTracks()[0].addEventListener('ended', () => {
+        console.log('Screen sharing stopped by user');
+        myPresentation.current.srcObject = null;
+        myPresentation.current.className = 'hidden';
+
+        wsRef.current.send(JSON.stringify({ type: 'presentation-stopped', peerId, roomId }))
+      })
+    }
+  }, [presentationStream])
 
   return (
     <div className='h-screen w-screen relative' style={{backgroundColor: '#202124'}}>
@@ -426,30 +495,77 @@ const MultiUserCall = () => {
             </div>
           </div>
 
-          <button style={{backgroundColor: '#3C4043'}} className='rounded-full p-2'><img src='/assets/icons/closed_caption.svg' /></button>
-          <button style={{backgroundColor: '#3C4043'}} className='rounded-full p-2'><img src='/assets/icons/mood.svg' /></button>
+          {/* <button style={{backgroundColor: '#3C4043'}} className='rounded-full p-2'><img src='/assets/icons/closed_caption.svg' /></button> */}
+          {/* <button style={{backgroundColor: '#3C4043'}} className='rounded-full p-2'><img src='/assets/icons/mood.svg' /></button> */}
           <button style={{backgroundColor: '#3C4043'}} className='rounded-full p-2' onClick={handlePresentation}><img src='/assets/icons/present_to_all.svg' /></button>
           <button style={{backgroundColor: '#3C4043'}} className='rounded-full p-2' onClick={handleRaiseHand}><img src='/assets/icons/back_hand.svg'  /></button>
           <button style={{backgroundColor: '#EA4335'}} className='rounded-full py-2 px-4' onClick={handleLeaveRoom}><img src='/assets/icons/call_end.svg' /></button>
         </div>
         <div className='flex space-x-4'>
           <button>
-            <img src='/assets/icons/info.svg' />
-          </button>
-          <button>
-            <img src='/assets/icons/group.svg' />
+            <img src='/assets/icons/group.svg' onClick={() => setShowPeopleModal(prev => !prev)} />
           </button>
           <button>
             <img src='/assets/icons/chat.svg' />
           </button>
-          <button>
+          <button className='rounded-full' onClick={() => setShowInfoModal(prev => !prev)}>
+            <img src='/assets/icons/info.svg' />
+          </button>
+          {/* <button>
             <img src='/assets/icons/category.svg' />
-          </button>
-          <button>
+          </button> */}
+          {/* <button>
             <img src='/assets/icons/lock_person.svg' />
-          </button>
+          </button> */}
         </div>
       </div>
+
+      {/* info modal */}
+      { showInfoModal && (
+        <div className='absolute top-4 right-4 h-4/5 w-1/4 bg-white rounded-lg'>
+          <div className='flex justify-between px-6 py-4 '>
+            <h3 className='text-md'>Detail Rapat</h3>
+            <img src='/assets/icons/close.svg' className='hover:cursor-pointer' onClick={() => setShowInfoModal(false)} />
+          </div>
+          <div className='mt-6 text-sm px-6 pb-4 border-b border-gray-400'>
+            <p className='font-medium text-gray-700'>Info akses</p>
+            <p className='text-gray-500 mt-2'>{ window.location.href }</p>
+            <p className='flex items-center font-medium text-sky-900 mt-2'><img src="/assets/icons/content_copy.svg" />  Salin info akses</p>
+          </div>
+          <div className='px-6 py-4'>
+          <p className='text-gray-500 mt-2 text-center text-sm'>Lampiran Google Kalender ditampilkan di sini</p>
+          </div>
+        </div>
+      ) }
+
+      { showPeopleModal && (
+        <div className='absolute top-4 right-4 h-4/5 w-1/4 bg-white rounded-lg'>
+          <div className='flex justify-between px-6 py-4 '>
+            <h3 className='text-md'>Orang</h3>
+            <img src='/assets/icons/close.svg' className='hover:cursor-pointer' onClick={() => setShowPeopleModal(false)} />
+          </div>
+          <div className='mt-4 px-2 py-4'>
+            <input className='px-4 py-3  border border-gray-300 rounded-md w-full' placeholder='Telusuri orang' />
+          </div>
+          <div className=''>
+            <p className='text-xs text-gray-500 px-6 py-2'>DALAM RAPAT</p>
+            <div className='px-2 py-2'>
+              <div className='rounded-md w-full border border-gray-300 '>
+                <div className='flex justify-between px-4 py-2 border-b border-gray-300'>
+                  <p className='text-sm'>Kontributor</p>
+                  <div className='flex space-x-4'>
+                    <p className='text-sm'>1</p>
+                    <img src='/assets/icons/keyboard_arrow_up_black.svg' />
+                  </div>
+                </div>
+                <div className='px-4 py-2'>
+                  Users
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        ) }
     </div>
   );
 };
