@@ -2,16 +2,28 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
+import Navbar from "@/components/Navbar";
+import SettingModal from "@/components/Home/SettingModal";
 
 export default function Home() {
-  const [roomId, setRoomId] = useState("");
   const router = useRouter();
+
+  const [roomId, setRoomId] = useState("");
   const [isShowSettingPopup, setShowSettingPopup] = useState(false);
   const [isCameraEnabled, setCameraEnabled] = useState(false);
   const [isMicEnabled, setMicEnabled] = useState(false);
 
+  const toggleSettingModal = () => setShowSettingPopup(prev => !prev);
+
+  const toggleDevice = (device) => {
+    if (device === "camera") {
+      setCameraEnabled(prev => !prev);
+    } else if (device === "mic") {
+      setMicEnabled(prev => !prev);
+    }
+  }
+
   const handleCreateRoom = () => {
-    //create random uuid for roomId
     const roomId = uuidv4();
     router.push(`/${roomId}`);
   }
@@ -27,28 +39,7 @@ export default function Home() {
 
   return (
     <main className="">
-      <nav className="sticky top-0 py-4 px-6 flex justify-between bg-white z-10">
-        <div className="flex items-center space-x-2">
-          <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTayrTZwfe00-1p6u8ZrDWN7EY4Rsn3BwAOhw&s" alt="Google Meet" className="w-8 h-7" />
-          <h1 className="text-xl text-gray-800 font-medium">Google Meet</h1>
-        </div>
-        <div className="flex items-center ">
-          <div className="flex space-x-6">
-            <p className="text-gray-600">16.19  •  Min, 25 Agu</p>
-            <img src="/assets/icons/help.svg" />
-            <img src="/assets/icons/feedback.svg" />
-            <button onClick={() => setShowSettingPopup(prev => !prev)}>
-              <img src="/assets/icons/settings.svg" />
-            </button>
-          </div>
-          <div className="pl-12 flex items-center space-x-4">
-            <img src="/assets/icons/apps.svg" />
-            <div className="h-8 w-8 bg-sky-900 rounded-full">
-
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navbar onOpenSettingModal={toggleSettingModal} />
 
       <div className="h-full w-full">
         <div className="w-1/2 transform translate-y-1/3">
@@ -81,32 +72,13 @@ export default function Home() {
         </div>
       </div>
 
-      <div className={`fixed inset-0 bg-black z-50 bg-opacity-50 flex items-center justify-center ${isShowSettingPopup ? '' : 'hidden'}`} id="lunrsearchresultsparent">
-        <div  className="w-full md:w-3/5 overflow-x-auto bg-white border border-gray-300 mx-auto absolute left-1/2 transform -translate-x-1/2 z-50 p-8 rounded-lg " >
-            <br />
-            <button className="absolute top-0 right-0 mx-2 font-bold p-2 text-lg" onClick={() => setShowSettingPopup(prev => !prev)}>x</button>
-            <div className="flex">
-              <div className="w-1/5 border-r border-gray-800">
-                Camera & Mic
-              </div>
-              <div className="w-4/5 px-4">
-                <h3 className="text-xl">Camera</h3>
-                <input type="checkbox" onChange={(e) => setCameraEnabled(prev => !prev)} />
-                <h3 className="text-xl">Mic</h3>
-                <input type="checkbox" onChange={() => setMicEnabled(prev => !prev)} />
-              </div>
-            </div>
-        </div>
-      </div>
-
-      {/* <button onClick={handleCreateRoom}>Create room</button>
-      <input
-        type="text"
-        value={roomId}
-        className="border border-gray-900 rounded-md p-2"
-        onChange={(e) => setRoomId(e.target.value)}
+      <SettingModal 
+        isOpen={isShowSettingPopup}
+        onClose={toggleSettingModal}
+        onToggleDevice={toggleDevice}
+        isCameraEnabled={isCameraEnabled}
+        isMicEnabled={isMicEnabled}
       />
-      <button onClick={() => router.push(`/${roomId}`)}>Join room</button> */}
     </main>
   );
 }
